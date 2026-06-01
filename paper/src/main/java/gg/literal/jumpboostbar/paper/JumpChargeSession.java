@@ -58,7 +58,7 @@ public final class JumpChargeSession {
 
         tick++;
         if (tick >= CHARGE_TICKS) {
-            finish(true);
+            // Don't stop charging automatically, wait for key release
         }
     }
 
@@ -107,6 +107,9 @@ public final class JumpChargeSession {
     }
 
     private void launch() {
+        if (player.isOnGround()) {
+            return;
+        }
         double blocks = Math.max(0.1D, currentBlocks());
         // This formula is derived from the Minecraft wiki's jump height formula.
         // h = v^2 / (2 * g), where g is gravity (0.08 blocks/tick^2), and v is initial velocity.
@@ -116,7 +119,7 @@ public final class JumpChargeSession {
         // A normal jump is 1.25 blocks.
         // The jump boost effect adds to this.
         // A simpler approach is to scale the velocity.
-        double y = 0.42 * Math.sqrt(blocks);
+        double y = Math.sqrt(blocks * 0.16);
         Vector velocity = player.getVelocity();
         velocity.setY(y);
         player.setVelocity(velocity);

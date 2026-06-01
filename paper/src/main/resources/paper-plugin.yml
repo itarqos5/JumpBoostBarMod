@@ -4,7 +4,7 @@ main: gg.literal.jumpboostbar.paper.JumpBoostBarPaper
 api-version: '1.21'
 authors:
   - literal
-description: Server-side JumpBoostBar plugin for Paper.
+description: "Because who needs to build leg muscles when you can just... charge up and fly? It's not lazy, it's efficient."
 folia-supported: true
 permissions:
   jumpboostbar.command:

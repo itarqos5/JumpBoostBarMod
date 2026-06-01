@@ -4,21 +4,21 @@
   "version": "${version}",
   "name": "${mod_name}",
   "icon": "icon.png",
-  "description": "Server-side JumpBoostBar mod for Fabric.",
+  "description": "Because who needs to build leg muscles when you can just... charge up and fly? It's not lazy, it's efficient.",
   "authors": [
     "literal"
   ],
   "contact": {},
   "license": "All Rights Reserved",
-  "environment": "server",
+  "environment": "client",
   "entrypoints": {
-    "server": [
+    "client": [
       "gg.literal.jumpboostbar.fabric.JumpBoostBarFabric"
     ]
   },
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
-    "minecraft": "~${mc_version}",
+    "minecraft": ">=1.21 <=1.26.1",
     "fabric-api": "*"
   }
 }

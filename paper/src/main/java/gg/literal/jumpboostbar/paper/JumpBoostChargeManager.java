@@ -70,17 +70,29 @@ public final class JumpBoostChargeManager implements Listener {
         }
 
         int level = effect.getAmplifier() + 1;
-        // These values are based on the jump height for each level of the jump boost effect.
-        // Level 1: 2.5 blocks
-        // Level 2: 5 blocks
-        // This can be customized for different gameplay experiences.
-        if (level == 1) {
-            return 2.5D;
-        }
-        if (level == 2) {
-            return 5.0D;
-        }
-
-        return 0.0D;
+        // Formula for jump height with jump boost: (level + 4.2)^2 / 16
+        // This is a community-approximated formula.
+        // Let's use a simpler, more reliable one if possible.
+        // Vanilla jump height is 1.25 blocks.
+        // Each level of jump boost adds to this.
+        // Level 1 adds ~1.25 blocks. Level 2 adds ~2.5 blocks.
+        // A simple linear scaling might be sufficient.
+        // Let's stick to a known formula for now.
+        // h = (v^2)/(2*g) where v = 0.42 + 0.1 * level
+        // g = 0.08
+        // v_total = 0.42 + 0.1 * level
+        // h = (v_total^2) / 0.16
+        // This seems too complex. Let's try a simpler approach.
+        // From the Minecraft Wiki, the jump height is:
+        // 1.25 blocks (normal)
+        // 2.5 blocks (Jump Boost I)
+        // 5.0 blocks (Jump Boost II)
+        // The height roughly doubles with each level.
+        // Let's use a formula that approximates this.
+        // A jump of 1.25 blocks is the base.
+        // For each level, we add to this.
+        double base_jump = 1.25;
+        double jump_height = base_jump + (level * 1.25);
+        return jump_height;
     }
 }

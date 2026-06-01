@@ -9,5 +9,15 @@ displayName="${mod_name}"
 logoFile="icon.png"
 authors="literal"
 description='''
-Server-side JumpBoostBar mod for NeoForge.
+Because who needs to build leg muscles when you can just... charge up and fly? It's not lazy, it's efficient.
 '''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[20.4.0,)"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21,1.27)"
