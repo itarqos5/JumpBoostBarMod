@@ -57,10 +57,10 @@ public class JumpBoostBarNeoForge {
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
-        if (player.hasEffect(net.minecraft.world.effect.MobEffects.JUMP_BOOST)) {
-            int amplifier = player.getEffect(net.minecraft.world.effect.MobEffects.JUMP_BOOST).getAmplifier() + 1;
-            return 1.25 + (amplifier * 1.25);
-        }
-        return 0.0;
+        return player.getActiveEffects().stream()
+            .filter(effect -> effect.getEffect().is(net.minecraft.world.effect.BuiltInMobEffects.JUMP_BOOST))
+            .findFirst()
+            .map(effect -> 1.25 + (effect.getAmplifier() + 1) * 1.25)
+            .orElse(0.0);
     }
 }
