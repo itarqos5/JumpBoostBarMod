@@ -2,10 +2,10 @@
 
 # If false, the jump boost bar will be disabled and not show up when players jump.
 # If true, the jump boost bar will be enabled and show up when players jump.
-enabled: false
+enabled: true
 
 # The type of bar to use for the jump boost bar. Valid options are "xp" and "bossbar".
 bar: xp
 
 # The message to display in the action bar when the jump boost bar is active. You can use {blocks} to display the number of blocks the player has jumped.
-actionbar-message: '&a{blocks} blocks'
+actionbar-message: '&aJumped {blocks} blocks!'

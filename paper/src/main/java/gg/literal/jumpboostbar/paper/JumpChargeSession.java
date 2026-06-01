@@ -1,8 +1,6 @@
 package gg.literal.jumpboostbar.paper;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import java.util.Random;
-import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -11,19 +9,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 public final class JumpChargeSession {
-    private static final int CHARGE_TICKS = 45;
+    private static final int CHARGE_TICKS = 20; // Reduced for quicker jumps
 
     private final JumpBoostBarPaper plugin;
     private final Player player;
     private final double maxBlocks;
     private final Runnable onComplete;
-    private final Random random = new Random();
 
     private ScheduledTask task;
     private BossBar bossBar;
     private int tick;
-    private float progress;
-    private float velocity;
     private final int originalLevel;
     private final float originalExp;
 
@@ -54,12 +49,11 @@ public final class JumpChargeSession {
 
     private void tick(ScheduledTask scheduledTask) {
         task = scheduledTask;
-        if (!player.isOnline() || !plugin.settings().isEnabled()) {
-            finish(false);
+        if (!player.isOnline() || !plugin.settings().isEnabled() || !player.isSneaking()) {
+            finish(player.isSneaking());
             return;
         }
 
-        updateHorseLikeProgress();
         showBar();
 
         tick++;
@@ -73,27 +67,16 @@ public final class JumpChargeSession {
         onComplete.run();
     }
 
-    private void updateHorseLikeProgress() {
-        if (tick == 0 || random.nextDouble() < 0.22D) {
-            velocity = (random.nextFloat() * 0.16F) - 0.07F;
-            if (progress < 0.18F) {
-                velocity = Math.abs(velocity) + 0.04F;
-            } else if (progress > 0.92F) {
-                velocity = -Math.abs(velocity) - 0.03F;
-            }
-        }
-
-        progress = clamp(progress + velocity, 0.0F, 1.0F);
-    }
-
     private void showBar() {
         double blocks = currentBlocks();
         String actionbar = plugin.settings().actionbarMessage()
             .replace("{blocks}", String.format("%.1f", blocks));
         player.sendActionBar(TextFormat.legacy(actionbar));
 
+        float progress = getProgress();
+
         if (plugin.settings().barMode() == BarMode.XP) {
-            player.setLevel((int) Math.round(blocks * 10.0D) / 10);
+            player.setLevel((int) Math.round(blocks));
             player.setExp(progress);
             return;
         }
@@ -105,7 +88,11 @@ public final class JumpChargeSession {
     }
 
     private double currentBlocks() {
-        return Math.round(maxBlocks * progress * 10.0D) / 10.0D;
+        return maxBlocks * getProgress();
+    }
+
+    private float getProgress() {
+        return (float) tick / CHARGE_TICKS;
     }
 
     private void finish(boolean launch) {
@@ -121,7 +108,15 @@ public final class JumpChargeSession {
 
     private void launch() {
         double blocks = Math.max(0.1D, currentBlocks());
-        double y = 0.42D * Math.sqrt(blocks / 1.25D);
+        // This formula is derived from the Minecraft wiki's jump height formula.
+        // h = v^2 / (2 * g), where g is gravity (0.08 blocks/tick^2), and v is initial velocity.
+        // The player's jump velocity is 0.42.
+        // To jump `blocks` high, the required velocity is sqrt(2 * g * blocks).
+        // However, we need to factor in the base jump height.
+        // A normal jump is 1.25 blocks.
+        // The jump boost effect adds to this.
+        // A simpler approach is to scale the velocity.
+        double y = 0.42 * Math.sqrt(blocks);
         Vector velocity = player.getVelocity();
         velocity.setY(y);
         player.setVelocity(velocity);
@@ -136,9 +131,5 @@ public final class JumpChargeSession {
             player.setLevel(originalLevel);
             player.setExp(originalExp);
         }
-    }
-
-    private static float clamp(float value, float min, float max) {
-        return Math.max(min, Math.min(max, value));
     }
 }
