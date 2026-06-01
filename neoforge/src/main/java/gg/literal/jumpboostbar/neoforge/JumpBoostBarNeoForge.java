@@ -19,11 +19,7 @@ package gg.literal.jumpboostbar.neoforge;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -84,9 +80,7 @@ public class JumpBoostBarNeoForge {
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
-        ResourceLocation id = ResourceLocation.tryParse("minecraft:jump_boost");
-        Holder<MobEffect> jumpBoost = id == null ? null : BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
-        MobEffectInstance instance = jumpBoost == null ? null : player.getEffect(jumpBoost);
+        MobEffectInstance instance = findJumpBoostEffect(player);
         if (instance == null) {
             return 0.0;
         }
@@ -95,9 +89,16 @@ public class JumpBoostBarNeoForge {
     }
 
     private boolean hasJumpBoost(LocalPlayer player) {
-        ResourceLocation id = ResourceLocation.tryParse("minecraft:jump_boost");
-        Holder<MobEffect> jumpBoost = id == null ? null : BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
-        return jumpBoost != null && player.getEffect(jumpBoost) != null;
+        return findJumpBoostEffect(player) != null;
+    }
+
+    private MobEffectInstance findJumpBoostEffect(LocalPlayer player) {
+        for (MobEffectInstance effect : player.getActiveEffects()) {
+            if ("effect.minecraft.jump_boost".equals(effect.getDescriptionId())) {
+                return effect;
+            }
+        }
+        return null;
     }
 
     private void onRegisterClientCommands(RegisterClientCommandsEvent event) {

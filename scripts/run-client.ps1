@@ -121,7 +121,60 @@ function Resolve-ModrinthGameVersion($GameVersion) {
     return $GameVersion
 }
 
+function Resolve-FabricApiVersion($GameVersion, $FallbackVersion) {
+    $encodedGameVersions = [uri]::EscapeDataString("[\"$GameVersion\"]")
+    $encodedLoaders = [uri]::EscapeDataString("[\"fabric\"]")
+    $url = "https://api.modrinth.com/v2/project/fabric-api/version?game_versions=$encodedGameVersions&loaders=$encodedLoaders"
+    try {
+        $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $url -ErrorAction Stop
+    } catch {
+        Write-Host "Could not resolve Fabric API for $GameVersion, using configured fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    if (-not $versions -or $versions.Count -eq 0) {
+        Write-Host "No Fabric API version found for $GameVersion, using configured fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    $sorted = $versions | Sort-Object -Property date_published -Descending
+    $release = $sorted | Where-Object { $_.version_type -eq 'release' } | Select-Object -First 1
+    $best = if ($release) { $release } else { $sorted | Select-Object -First 1 }
+    if (-not $best -or -not $best.version_number) {
+        Write-Host "Fabric API metadata incomplete for $GameVersion, using fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    return [string]$best.version_number
+}
+
+function Resolve-FabricLoaderVersion($GameVersion, $FallbackVersion) {
+    $url = "https://meta.fabricmc.net/v2/versions/loader/$GameVersion"
+    try {
+        $entries = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $url -ErrorAction Stop
+    } catch {
+        Write-Host "Could not resolve Fabric Loader for $GameVersion, using configured fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    if (-not $entries -or $entries.Count -eq 0) {
+        Write-Host "No Fabric Loader version found for $GameVersion, using configured fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    $stable = $entries | Where-Object { $_.loader.stable -eq $true } | Select-Object -First 1
+    $best = if ($stable) { $stable } else { $entries | Select-Object -First 1 }
+    if (-not $best -or -not $best.loader.version) {
+        Write-Host "Fabric Loader metadata incomplete for $GameVersion, using fallback '$FallbackVersion'." -ForegroundColor Yellow
+        return $FallbackVersion
+    }
+
+    return [string]$best.loader.version
+}
+
 $defaultVersion = Read-GradleProperty "mc_version" "1.21.1"
+$defaultFabricApiVersion = Read-GradleProperty "fabric_api_version" "0.110.0+1.21.1"
+$defaultFabricLoaderVersion = Read-GradleProperty "fabric_loader_version" "0.16.10"
 
 Write-Host ""
 Write-Host "   Next dev runner" -ForegroundColor Cyan
@@ -139,7 +192,7 @@ $gameVersion = $gameVersion.Trim()
 $modrinthGameVersion = Resolve-ModrinthGameVersion $gameVersion
 
 if ($gameVersion -ne $defaultVersion) {
-    Write-Host "Warning: entered game version '$gameVersion' differs from project default '$defaultVersion'. Build dependencies may fail if versions don't match gradle.properties." -ForegroundColor Yellow
+    Write-Host "Using non-default Minecraft version '$gameVersion'. Resolving compatible loader dependencies..." -ForegroundColor Yellow
 }
 
 $runDir = Join-Path $loader "run"
@@ -176,8 +229,41 @@ if (-not [string]::IsNullOrWhiteSpace($modInput)) {
 Write-Step "Launching $loader $gameVersion"
 Write-Host "External test mods are in $modsDir" -ForegroundColor DarkGray
 
-& ".\gradlew.bat" "--no-daemon" ":${loader}:runClient" "-Pmc_version=$gameVersion"
+$previousMc = $env:ORG_GRADLE_PROJECT_mc_version
+$previousFabricLoader = $env:ORG_GRADLE_PROJECT_fabric_loader_version
+$previousFabricApi = $env:ORG_GRADLE_PROJECT_fabric_api_version
+
+$env:ORG_GRADLE_PROJECT_mc_version = $gameVersion
+
+$gradleArgs = @("--no-daemon", ":${loader}:runClient")
+if ($loader -eq "fabric") {
+    $resolvedFabricApiVersion = Resolve-FabricApiVersion $gameVersion $defaultFabricApiVersion
+    $resolvedFabricLoaderVersion = Resolve-FabricLoaderVersion $gameVersion $defaultFabricLoaderVersion
+    Write-Host "Fabric dependency resolution: loader=$resolvedFabricLoaderVersion, fabric-api=$resolvedFabricApiVersion" -ForegroundColor DarkGray
+    $env:ORG_GRADLE_PROJECT_fabric_loader_version = $resolvedFabricLoaderVersion
+    $env:ORG_GRADLE_PROJECT_fabric_api_version = $resolvedFabricApiVersion
+}
+
+& ".\gradlew.bat" @gradleArgs
 $exitCode = $LASTEXITCODE
+
+if ($null -eq $previousMc) {
+    Remove-Item Env:ORG_GRADLE_PROJECT_mc_version -ErrorAction SilentlyContinue
+} else {
+    $env:ORG_GRADLE_PROJECT_mc_version = $previousMc
+}
+
+if ($null -eq $previousFabricLoader) {
+    Remove-Item Env:ORG_GRADLE_PROJECT_fabric_loader_version -ErrorAction SilentlyContinue
+} else {
+    $env:ORG_GRADLE_PROJECT_fabric_loader_version = $previousFabricLoader
+}
+
+if ($null -eq $previousFabricApi) {
+    Remove-Item Env:ORG_GRADLE_PROJECT_fabric_api_version -ErrorAction SilentlyContinue
+} else {
+    $env:ORG_GRADLE_PROJECT_fabric_api_version = $previousFabricApi
+}
 
 # Cleanup downloaded compatibility mods after the game exits so next run starts clean.
 Get-ChildItem -Path $modsDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
