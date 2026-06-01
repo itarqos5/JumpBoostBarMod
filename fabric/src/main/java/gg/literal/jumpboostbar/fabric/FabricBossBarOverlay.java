@@ -59,7 +59,6 @@ public final class FabricBossBarOverlay {
         graphics.fill(x, y, x + barWidth, y + 10, 0xAA222222);
         graphics.fill(x, y, x + fillWidth, y + 10, 0xAA00AA00);
 
-        int textWidth = client.font.width(title);
-        graphics.drawString(client.font, title, (width - textWidth) / 2, y - 10, 0xFFFFFF, true);
+        graphics.drawCenteredString(client.font, title, width / 2, y - 10, 0xFFFFFF);
     }
 }
