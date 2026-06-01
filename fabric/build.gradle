@@ -1,0 +1,61 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${mod_id}-fabric"
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir '../common/src/main/java'
+        }
+        resources {
+            srcDir '../common/src/main/resources'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mc_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'mc_version', project.property('mc_version')
+    inputs.property 'fabric_loader_version', project.property('fabric_loader_version')
+    inputs.property 'mod_id', project.property('mod_id')
+    inputs.property 'mod_name', project.property('mod_name')
+
+    filesMatching('fabric.mod.json') {
+        expand(
+            version: project.version,
+            mc_version: project.property('mc_version'),
+            fabric_loader_version: project.property('fabric_loader_version'),
+            mod_id: project.property('mod_id'),
+            mod_name: project.property('mod_name')
+        )
+    }
+}
+
+tasks.register('runDedicatedServer') {
+    dependsOn 'runServer'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}

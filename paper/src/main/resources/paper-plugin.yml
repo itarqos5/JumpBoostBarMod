@@ -1,0 +1,7 @@
+name: ${mod_name}
+version: ${version}
+main: gg.literal.jumpboostbar.paper.JumpBoostBarPaper
+api-version: '1.21'
+authors:
+  - literal
+description: Server-side JumpBoostBar plugin for Paper.

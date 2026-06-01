@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "icon": "icon.png",
+  "description": "Server-side JumpBoostBar mod for Fabric.",
+  "authors": [
+    "literal"
+  ],
+  "contact": {},
+  "license": "All Rights Reserved",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      "gg.literal.jumpboostbar.fabric.JumpBoostBarFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "~${mc_version}",
+    "fabric-api": "*"
+  }
+}

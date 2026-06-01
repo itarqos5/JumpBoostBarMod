@@ -1,0 +1,30 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.PREFER_PROJECT
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    }
+}
+
+rootProject.name = 'JumpBoostBar'
+
+def requestedTasks = gradle.startParameter.taskNames
+def wrapperOnly = !requestedTasks.isEmpty() && requestedTasks.every { taskName ->
+    taskName == 'wrapper' || taskName.endsWith(':wrapper')
+}
+def skipModules = gradle.startParameter.projectProperties.containsKey('skipModules')
+
+if (!wrapperOnly && !skipModules) {
+    include('fabric', 'neoforge', 'paper')
+}

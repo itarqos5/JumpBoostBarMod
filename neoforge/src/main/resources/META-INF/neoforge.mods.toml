@@ -1,0 +1,13 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="${mod_id}"
+version="${version}"
+displayName="${mod_name}"
+logoFile="icon.png"
+authors="literal"
+description='''
+Server-side JumpBoostBar mod for NeoForge.
+'''

@@ -1,0 +1,59 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version "${shadow_version}"
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${mod_id}-paper"
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir '../common/src/main/java'
+        }
+        resources {
+            srcDir '../common/src/main/resources'
+        }
+    }
+}
+
+dependencies {
+    compileOnly "io.papermc.paper:paper-api:${paper_api_version}"
+}
+
+tasks.named('processResources') {
+    inputs.property 'version', project.version
+
+    filesMatching('paper-plugin.yml') {
+        expand(
+            version: project.version,
+            mod_name: project.property('mod_name')
+        )
+    }
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('shadowJar') {
+    archiveClassifier = ''
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('shadowJar')
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact tasks.named('shadowJar')
+        }
+    }
+}
