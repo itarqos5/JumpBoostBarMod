@@ -40,9 +40,10 @@ function Read-GradleProperty($Name, $Default) {
 
 function Find-ModrinthFile($Project, $Loader, $GameVersion) {
     $encodedProject = [uri]::EscapeDataString($Project)
-    $encodedLoaders = [uri]::EscapeDataString("[`"$($Loader)`"]")
-    $encodedGameVersions = [uri]::EscapeDataString("[`"$($GameVersion)`"]")
-    $url = "https://api.modrinth.com/v2/search?limit=5&facets=[`"project_type:mod`",`"client_side:required`",`"categories:$($encodedLoaders)`",`"versions:$($encodedGameVersions)`"]&query=$($encodedProject)"
+    # Build a proper facets JSON and URL-encode it once. Avoid double-encoding individual elements.
+    $facetsJson = '["project_type:mod","client_side:required","categories:' + $Loader + '","versions:' + $GameVersion + '"]'
+    $encodedFacets = [uri]::EscapeDataString($facetsJson)
+    $url = "https://api.modrinth.com/v2/search?limit=5&facets=$encodedFacets&query=$encodedProject"
 
     try {
         $searchResult = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $url -ErrorAction Stop
@@ -56,7 +57,9 @@ function Find-ModrinthFile($Project, $Loader, $GameVersion) {
         return $null
     }
 
-    $versionsUrl = "https://api.modrinth.com/v2/project/$projectSlug/version?loaders=$encodedLoaders&game_versions=$encodedGameVersions"
+    $encodedLoader = [uri]::EscapeDataString($Loader)
+    $encodedGameVersion = [uri]::EscapeDataString($GameVersion)
+    $versionsUrl = "https://api.modrinth.com/v2/project/$projectSlug/version?loaders=$encodedLoader&game_versions=$encodedGameVersion"
     try {
         $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $versionsUrl -ErrorAction Stop
     } catch {
@@ -91,6 +94,12 @@ if ([string]::IsNullOrWhiteSpace($gameVersion)) {
     $gameVersion = $defaultVersion
 }
 $gameVersion = $gameVersion.Trim()
+
+# Prevent accidental use of an incompatible MC version. Prefer the project's default unless explicitly overridden with a matching fabric API.
+if ($gameVersion -ne $defaultVersion) {
+    Write-Host "Warning: entered game version '$gameVersion' differs from project default '$defaultVersion'. Using project default to avoid dependency mismatch." -ForegroundColor Yellow
+    $gameVersion = $defaultVersion
+}
 
 $runDir = Join-Path $loader "run"
 $modsDir = Join-Path $runDir "mods"
