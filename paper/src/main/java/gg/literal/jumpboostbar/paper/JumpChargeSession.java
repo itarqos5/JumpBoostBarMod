@@ -50,7 +50,7 @@ public final class JumpChargeSession {
     private void tick(ScheduledTask scheduledTask) {
         task = scheduledTask;
         if (!player.isOnline() || !plugin.settings().isEnabled() || !player.isSneaking()) {
-            finish(player.isSneaking());
+            finish(true); // Launch when the player stops sneaking
             return;
         }
 
