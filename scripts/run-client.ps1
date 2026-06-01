@@ -122,8 +122,10 @@ function Resolve-ModrinthGameVersion($GameVersion) {
 }
 
 function Resolve-FabricApiVersion($GameVersion, $FallbackVersion) {
-    $encodedGameVersions = [uri]::EscapeDataString("[\"$GameVersion\"]")
-    $encodedLoaders = [uri]::EscapeDataString("[\"fabric\"]")
+    $gameVersionsJson = '["' + $GameVersion + '"]'
+    $loadersJson = '["fabric"]'
+    $encodedGameVersions = [uri]::EscapeDataString($gameVersionsJson)
+    $encodedLoaders = [uri]::EscapeDataString($loadersJson)
     $url = "https://api.modrinth.com/v2/project/fabric-api/version?game_versions=$encodedGameVersions&loaders=$encodedLoaders"
     try {
         $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $url -ErrorAction Stop

@@ -23,6 +23,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -33,27 +34,32 @@ public class JumpBoostBarNeoForge {
 
     public static JumpBoostBarConfig config;
     private final NeoForgeJumpChargeHandler chargeHandler = new NeoForgeJumpChargeHandler();
+    private final NeoForgeBossBarOverlay bossBarOverlay = new NeoForgeBossBarOverlay();
 
     public JumpBoostBarNeoForge(IEventBus modEventBus) {
         config = JumpBoostBarConfig.load();
         NeoForge.EVENT_BUS.addListener(this::onClientTick);
         NeoForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
+        NeoForge.EVENT_BUS.addListener(this::onRenderGuiLayer);
     }
 
     private void onClientTick(ClientTickEvent.Post event) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
         if (!config.isEnabled()) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
         if (!hasJumpBoost(player)) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
@@ -65,6 +71,7 @@ public class JumpBoostBarNeoForge {
             if (chargeHandler.isCharging()) {
                 chargeHandler.stopCharging();
             }
+            bossBarOverlay.hide();
         }
     }
 
@@ -73,10 +80,14 @@ public class JumpBoostBarNeoForge {
         String actionbar = config.actionbarMessage().replace("{blocks}", String.format("%.1f", blocks));
         player.displayClientMessage(Component.literal(actionbar.replace('&', '§')), true);
 
-        if (config.barMode() == BarMode.XP || config.barMode() == BarMode.BOSSBAR) {
+        if (config.barMode() == BarMode.XP) {
             player.experienceLevel = (int) Math.round(blocks);
             player.experienceProgress = Math.min(1.0f, progress);
+            bossBarOverlay.hide();
+            return;
         }
+
+        bossBarOverlay.update(Component.literal(String.format("%.1f blocks", blocks)), progress);
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
@@ -112,6 +123,7 @@ public class JumpBoostBarNeoForge {
                 .then(net.minecraft.commands.Commands.literal("off").executes(context -> {
                     config.setEnabled(false);
                     chargeHandler.cancelCharging();
+                    bossBarOverlay.hide();
                     context.getSource().sendSuccess(() -> Component.literal("§cJumpBoostBar disabled."), false);
                     return 1;
                 }))
@@ -130,6 +142,7 @@ public class JumpBoostBarNeoForge {
                             }
                             config.setBarMode(BarMode.fromConfig(mode));
                             chargeHandler.cancelCharging();
+                            bossBarOverlay.hide();
                             context.getSource().sendSuccess(() -> Component.literal("§aJumpBoostBar bar set to §f" + config.barMode().configValue() + "§a."), false);
                             return 1;
                         })))
@@ -145,5 +158,11 @@ public class JumpBoostBarNeoForge {
             net.minecraft.commands.Commands.literal("jbb")
                 .redirect(event.getDispatcher().getRoot().getChild("jumpboostbar"))
         );
+    }
+
+    private void onRenderGuiLayer(RenderGuiLayerEvent.Post event) {
+        if (config != null && config.barMode() == BarMode.BOSSBAR) {
+            bossBarOverlay.onRender(event);
+        }
     }
 }

@@ -32,6 +32,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
 
     public static JumpBoostBarConfig config;
     private final FabricJumpChargeHandler chargeHandler = new FabricJumpChargeHandler();
+    private final FabricBossBarOverlay bossBarOverlay = new FabricBossBarOverlay();
 
     @Override
     public void onInitializeClient() {
@@ -46,16 +47,19 @@ public class JumpBoostBarFabric implements ClientModInitializer {
         LocalPlayer player = client.player;
         if (player == null) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
         if (!config.isEnabled()) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
         if (!hasJumpBoost(player)) {
             chargeHandler.cancelCharging();
+            bossBarOverlay.hide();
             return;
         }
 
@@ -67,6 +71,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
             if (chargeHandler.isCharging()) {
                 chargeHandler.stopCharging();
             }
+            bossBarOverlay.hide();
         }
     }
 
@@ -75,10 +80,14 @@ public class JumpBoostBarFabric implements ClientModInitializer {
         String actionbar = config.actionbarMessage().replace("{blocks}", String.format("%.1f", blocks));
         player.displayClientMessage(Component.literal(actionbar.replace('&', '§')), true);
 
-        if (config.barMode() == BarMode.XP || config.barMode() == BarMode.BOSSBAR) {
+        if (config.barMode() == BarMode.XP) {
             player.experienceLevel = (int) Math.round(blocks);
             player.experienceProgress = Math.min(1.0f, progress);
+            bossBarOverlay.hide();
+            return;
         }
+
+        bossBarOverlay.update(Component.literal(String.format("%.1f blocks", blocks)), progress);
     }
 
     private boolean hasJumpBoost(LocalPlayer player) {
@@ -114,6 +123,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
                 .then(ClientCommandManager.literal("off").executes(context -> {
                     config.setEnabled(false);
                     chargeHandler.cancelCharging();
+                    bossBarOverlay.hide();
                     context.getSource().sendFeedback(Component.literal("§cJumpBoostBar disabled."));
                     return 1;
                 }))
@@ -132,6 +142,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
                             }
                             config.setBarMode(BarMode.fromConfig(mode));
                             chargeHandler.cancelCharging();
+                            bossBarOverlay.hide();
                             context.getSource().sendFeedback(Component.literal("§aJumpBoostBar bar set to §f" + config.barMode().configValue() + "§a."));
                             return 1;
                         })))

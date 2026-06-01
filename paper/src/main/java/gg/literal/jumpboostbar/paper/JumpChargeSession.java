@@ -117,7 +117,18 @@ public final class JumpChargeSession {
     }
 
     private float getProgress() {
-        return Math.min(1.0f, (float) tick / CHARGE_TICKS);
+        if (tick <= CHARGE_TICKS) {
+            return Math.min(1.0f, (float) tick / CHARGE_TICKS);
+        }
+
+        int oscillationTicks = tick - CHARGE_TICKS;
+        int cycleLength = CHARGE_TICKS * 2;
+        int cyclePos = oscillationTicks % cycleLength;
+        if (cyclePos < CHARGE_TICKS) {
+            return 1.0f - ((float) cyclePos / CHARGE_TICKS);
+        }
+
+        return (float) (cyclePos - CHARGE_TICKS) / CHARGE_TICKS;
     }
 
     private void finish(boolean launch) {

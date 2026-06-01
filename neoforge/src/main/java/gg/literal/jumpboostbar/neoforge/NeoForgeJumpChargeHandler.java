@@ -88,7 +88,7 @@ public class NeoForgeJumpChargeHandler implements JumpChargeHandler {
 
             currentTicks++;
             if (onProgress != null) {
-                onProgress.accept(Math.min(1.0f, (float) currentTicks / chargeTicks));
+                onProgress.accept(getProgress());
             }
         }
     }
@@ -111,7 +111,7 @@ public class NeoForgeJumpChargeHandler implements JumpChargeHandler {
         if (launch && player.onGround() && hasJumpBoost(player)) {
             double jumpHeight = calculateJumpHeight(player);
             if (jumpHeight > 0) {
-                float progress = Math.min(1.0f, (float) currentTicks / chargeTicks);
+                float progress = getProgress();
                 double y = Math.sqrt((jumpHeight * progress) * 0.16);
                 Vec3 velocity = player.getDeltaMovement();
                 player.setDeltaMovement(velocity.x, y, velocity.z);
@@ -142,5 +142,24 @@ public class NeoForgeJumpChargeHandler implements JumpChargeHandler {
             }
         }
         return null;
+    }
+
+    private float getProgress() {
+        if (chargeTicks <= 0) {
+            return 0.0f;
+        }
+
+        if (currentTicks <= chargeTicks) {
+            return Math.min(1.0f, (float) currentTicks / chargeTicks);
+        }
+
+        int oscillationTicks = currentTicks - chargeTicks;
+        int cycleLength = chargeTicks * 2;
+        int cyclePos = oscillationTicks % cycleLength;
+        if (cyclePos < chargeTicks) {
+            return 1.0f - ((float) cyclePos / chargeTicks);
+        }
+
+        return (float) (cyclePos - chargeTicks) / chargeTicks;
     }
 }
