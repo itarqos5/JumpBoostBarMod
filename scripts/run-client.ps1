@@ -39,26 +39,41 @@ function Read-GradleProperty($Name, $Default) {
 }
 
 function Find-ModrinthFile($Project, $Loader, $GameVersion) {
-    $encoded = [uri]::EscapeDataString($Project)
+    $encodedProject = [uri]::EscapeDataString($Project)
+    $encodedLoaders = [uri]::EscapeDataString("[`"$($Loader)`"]")
+    $encodedGameVersions = [uri]::EscapeDataString("[`"$($GameVersion)`"]")
+    $url = "https://api.modrinth.com/v2/search?limit=5&facets=[`"project_type:mod`",`"client_side:required`",`"categories:$($encodedLoaders)`",`"versions:$($encodedGameVersions)`"]&query=$($encodedProject)"
+
     try {
-        $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } `
-            -Uri "https://api.modrinth.com/v2/project/$encoded/version" -ErrorAction Stop
+        $searchResult = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $url -ErrorAction Stop
+        if ($searchResult.total_hits -eq 0) {
+            Write-Host "No project found for '$Project' on Modrinth." -ForegroundColor Yellow
+            return $null
+        }
+        $projectSlug = $searchResult.hits[0].slug
     } catch {
-        Write-Host "Mod not found: '$Project' (could not reach Modrinth or project does not exist)" -ForegroundColor Yellow
+        Write-Host "Error searching for project '$Project' on Modrinth: $($_.Exception.Message)" -ForegroundColor Red
         return $null
     }
 
-    foreach ($version in $versions) {
-        if (($version.loaders -contains $Loader) -and ($version.game_versions -contains $GameVersion)) {
-            $primary = $version.files | Where-Object { $_.primary } | Select-Object -First 1
-            if (-not $primary) {
-                $primary = $version.files | Select-Object -First 1
-            }
-            return $primary
-        }
+    $versionsUrl = "https://api.modrinth.com/v2/project/$projectSlug/version?loaders=$encodedLoaders&game_versions=$encodedGameVersions"
+    try {
+        $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri $versionsUrl -ErrorAction Stop
+    } catch {
+        Write-Host "Could not fetch versions for '$projectSlug': $($_.Exception.Message)" -ForegroundColor Red
+        return $null
     }
 
-    return $null
+    $sortedVersions = $versions | Sort-Object -Property date_published -Descending
+    $release = $sortedVersions | Where-Object { $_.version_type -eq 'release' } | Select-Object -First 1
+    $bestMatch = if ($release) { $release } else { $sortedVersions | Select-Object -First 1 }
+
+    if (-not $bestMatch) {
+        return $null
+    }
+
+    $primaryFile = $bestMatch.files | Where-Object { $_.primary } | Select-Object -First 1
+    return if ($primaryFile) { $primaryFile } else { $bestMatch.files | Select-Object -First 1 }
 }
 
 $defaultVersion = Read-GradleProperty "mc_version" "1.21.1"
