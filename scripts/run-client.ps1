@@ -79,6 +79,48 @@ function Find-ModrinthFile($Project, $Loader, $GameVersion) {
     return if ($primaryFile) { $primaryFile } else { $bestMatch.files | Select-Object -First 1 }
 }
 
+function Resolve-ModrinthGameVersion($GameVersion) {
+    try {
+        $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } -Uri "https://api.modrinth.com/v2/tag/game_version" -ErrorAction Stop
+    } catch {
+        Write-Host "Could not fetch Modrinth game version tags; using '$GameVersion'." -ForegroundColor Yellow
+        return $GameVersion
+    }
+
+    $available = @()
+    foreach ($entry in $versions) {
+        if ($entry -is [string]) {
+            $available += $entry
+        } elseif ($entry.PSObject.Properties.Name -contains "version") {
+            $available += [string]$entry.version
+        }
+    }
+
+    if ($available -contains $GameVersion) {
+        return $GameVersion
+    }
+
+    if ($GameVersion -match '^(\d+\.\d+)\.(\d)(\d+)$') {
+        $collapsedPatch = "$($Matches[1]).$($Matches[2])"
+        if ($available -contains $collapsedPatch) {
+            Write-Host "Using Modrinth-compatible version '$collapsedPatch' for mod lookup (from '$GameVersion')." -ForegroundColor Yellow
+            return $collapsedPatch
+        }
+    }
+
+    if ($GameVersion -match '^(\d+\.\d+)') {
+        $prefix = "$($Matches[1])."
+        $fallback = $available | Where-Object { $_.StartsWith($prefix) } | Sort-Object -Descending | Select-Object -First 1
+        if ($fallback) {
+            Write-Host "Using nearest Modrinth game version '$fallback' for mod lookup (from '$GameVersion')." -ForegroundColor Yellow
+            return $fallback
+        }
+    }
+
+    Write-Host "No close Modrinth version found for '$GameVersion'; using original value." -ForegroundColor Yellow
+    return $GameVersion
+}
+
 $defaultVersion = Read-GradleProperty "mc_version" "1.21.1"
 
 Write-Host ""
@@ -94,16 +136,18 @@ if ([string]::IsNullOrWhiteSpace($gameVersion)) {
     $gameVersion = $defaultVersion
 }
 $gameVersion = $gameVersion.Trim()
+$modrinthGameVersion = Resolve-ModrinthGameVersion $gameVersion
 
-# Prevent accidental use of an incompatible MC version. Prefer the project's default unless explicitly overridden with a matching fabric API.
 if ($gameVersion -ne $defaultVersion) {
-    Write-Host "Warning: entered game version '$gameVersion' differs from project default '$defaultVersion'. Using project default to avoid dependency mismatch." -ForegroundColor Yellow
-    $gameVersion = $defaultVersion
+    Write-Host "Warning: entered game version '$gameVersion' differs from project default '$defaultVersion'. Build dependencies may fail if versions don't match gradle.properties." -ForegroundColor Yellow
 }
 
 $runDir = Join-Path $loader "run"
 $modsDir = Join-Path $runDir "mods"
 New-Item -ItemType Directory -Force -Path $modsDir | Out-Null
+
+# Always start with a clean mod test directory to avoid cross-version crashes.
+Get-ChildItem -Path $modsDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
 Write-Step "Optional Modrinth compatibility mods"
 Write-Host "Enter Modrinth project slugs or IDs separated by commas, or press Enter to skip."
@@ -112,9 +156,9 @@ if (-not [string]::IsNullOrWhiteSpace($modInput)) {
     $projects = $modInput.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ }
     foreach ($project in $projects) {
         Write-Host "Checking $project..." -ForegroundColor DarkGray
-        $file = Find-ModrinthFile $project $loader $gameVersion
+        $file = Find-ModrinthFile $project $loader $modrinthGameVersion
         if (-not $file) {
-            Write-Host "No $loader $gameVersion file found for $project" -ForegroundColor Yellow
+            Write-Host "No $loader $modrinthGameVersion file found for $project" -ForegroundColor Yellow
             continue
         }
 
@@ -133,4 +177,9 @@ Write-Step "Launching $loader $gameVersion"
 Write-Host "External test mods are in $modsDir" -ForegroundColor DarkGray
 
 & ".\gradlew.bat" "--no-daemon" ":${loader}:runClient" "-Pmc_version=$gameVersion"
-exit $LASTEXITCODE
+$exitCode = $LASTEXITCODE
+
+# Cleanup downloaded compatibility mods after the game exits so next run starts clean.
+Get-ChildItem -Path $modsDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+
+exit $exitCode

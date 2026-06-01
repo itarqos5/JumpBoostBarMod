@@ -34,6 +34,8 @@ public class FabricJumpChargeHandler implements JumpChargeHandler {
     private int chargeTicks;
     private int currentTicks = 0;
     private Consumer<Float> onProgress;
+    private int originalLevel;
+    private float originalExp;
 
     public FabricJumpChargeHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
@@ -41,27 +43,22 @@ public class FabricJumpChargeHandler implements JumpChargeHandler {
 
     @Override
     public void startCharging(int chargeTicks, Consumer<Float> onProgress) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || !player.onGround() || !hasJumpBoost(player)) {
+            return;
+        }
+
         this.charging = true;
         this.chargeTicks = chargeTicks;
         this.onProgress = onProgress;
         this.currentTicks = 0;
+        this.originalLevel = player.experienceLevel;
+        this.originalExp = player.experienceProgress;
     }
 
     @Override
     public void stopCharging() {
-        if (this.charging) {
-            this.charging = false;
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player != null && !player.onGround()) {
-                double jumpHeight = calculateJumpHeight(player);
-                if (jumpHeight > 0) {
-                    float progress = (float) currentTicks / chargeTicks;
-                    double y = Math.sqrt(jumpHeight * progress * 0.16);
-                    Vec3 velocity = player.getDeltaMovement();
-                    player.setDeltaMovement(velocity.x, y, velocity.z);
-                }
-            }
-        }
+        stopCharging(true);
     }
 
     @Override
@@ -72,16 +69,66 @@ public class FabricJumpChargeHandler implements JumpChargeHandler {
     private void onClientTick(Minecraft client) {
         if (charging) {
             LocalPlayer player = client.player;
-            if (player == null || !player.isShiftKeyDown()) {
+            if (player == null) {
+                cancelCharging();
+                return;
+            }
+
+            if (!player.onGround()) {
+                cancelCharging();
+                return;
+            }
+
+            if (!hasJumpBoost(player)) {
+                cancelCharging();
+                return;
+            }
+
+            if (!player.isShiftKeyDown()) {
                 stopCharging();
                 return;
             }
 
             currentTicks++;
             if (onProgress != null) {
-                onProgress.accept((float) currentTicks / chargeTicks);
+                onProgress.accept(Math.min(1.0f, (float) currentTicks / chargeTicks));
             }
         }
+    }
+
+    public void cancelCharging() {
+        stopCharging(false);
+    }
+
+    private void stopCharging(boolean launch) {
+        if (!this.charging) {
+            return;
+        }
+
+        this.charging = false;
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+
+        if (launch && player.onGround() && hasJumpBoost(player)) {
+            double jumpHeight = calculateJumpHeight(player);
+            if (jumpHeight > 0) {
+                float progress = Math.min(1.0f, (float) currentTicks / chargeTicks);
+                double y = Math.sqrt((jumpHeight * progress) * 0.16);
+                Vec3 velocity = player.getDeltaMovement();
+                player.setDeltaMovement(velocity.x, y, velocity.z);
+            }
+        }
+
+        player.experienceLevel = originalLevel;
+        player.experienceProgress = originalExp;
+    }
+
+    private boolean hasJumpBoost(LocalPlayer player) {
+        ResourceLocation id = ResourceLocation.tryParse("minecraft:jump_boost");
+        Holder<MobEffect> jumpBoost = id == null ? null : BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
+        return jumpBoost != null && player.getEffect(jumpBoost) != null;
     }
 
     private double calculateJumpHeight(LocalPlayer player) {

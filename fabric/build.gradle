@@ -24,10 +24,10 @@ sourceSets {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${mc_version}"
+    minecraft "com.mojang:minecraft:${project.property('mc_version') as String}"
     mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    modImplementation "net.fabricmc:fabric-loader:${project.property('fabric_loader_version') as String}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.property('fabric_api_version') as String}"
 }
 
 processResources {

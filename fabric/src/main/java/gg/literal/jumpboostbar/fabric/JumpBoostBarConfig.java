@@ -21,26 +21,29 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class JumpBoostBarConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Path CONFIG_PATH =
-            FabricLoader.getInstance().getConfigDir().resolve("jumpboostbar.json");
+            FabricLoader.getInstance().getConfigDir().resolve("jumpboostbar.yml");
 
     private boolean enabled = true;
+    private BarMode barMode = BarMode.XP;
     private String actionbarMessage = "&a{blocks} blocks";
 
     private JumpBoostBarConfig() {}
 
     public static JumpBoostBarConfig load() {
         if (Files.exists(CONFIG_PATH)) {
-            try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
-                JumpBoostBarConfig cfg = GSON.fromJson(reader, JumpBoostBarConfig.class);
-                if (cfg != null) return cfg;
+            try {
+                JumpBoostBarConfig cfg = fromYaml(Files.readAllLines(CONFIG_PATH));
+                if (cfg != null) {
+                    return cfg;
+                }
             } catch (IOException e) {
                 System.err.println("[JumpBoostBar] Failed to load config, using defaults: " + e.getMessage());
             }
@@ -51,8 +54,8 @@ public final class JumpBoostBarConfig {
     }
 
     public void save() {
-        try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
-            GSON.toJson(this, writer);
+        try {
+            Files.write(CONFIG_PATH, toYamlLines());
         } catch (IOException e) {
             System.err.println("[JumpBoostBar] Failed to save config: " + e.getMessage());
         }
@@ -61,6 +64,55 @@ public final class JumpBoostBarConfig {
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; save(); }
 
+    public BarMode barMode() { return barMode; }
+    public void setBarMode(BarMode barMode) { this.barMode = barMode; save(); }
+
     public String actionbarMessage() { return actionbarMessage; }
     public void setActionbarMessage(String actionbarMessage) { this.actionbarMessage = actionbarMessage; save(); }
+
+    private static JumpBoostBarConfig fromYaml(List<String> lines) {
+        JumpBoostBarConfig cfg = new JumpBoostBarConfig();
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+
+            int separator = line.indexOf(':');
+            if (separator <= 0) {
+                continue;
+            }
+
+            String key = line.substring(0, separator).trim();
+            String value = line.substring(separator + 1).trim();
+            if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.substring(1, value.length() - 1);
+            }
+
+            switch (key) {
+                case "enabled" -> cfg.enabled = Boolean.parseBoolean(value);
+                case "bar" -> cfg.barMode = BarMode.fromConfig(value);
+                case "actionbar-message" -> cfg.actionbarMessage = value;
+                default -> {
+                }
+            }
+        }
+        return cfg;
+    }
+
+    private List<String> toYamlLines() {
+        List<String> lines = new ArrayList<>();
+        lines.add("# JumpBoostBar Configuration");
+        lines.add("");
+        lines.add("# If false, the jump boost bar will be disabled and not show up when players jump.");
+        lines.add("# If true, the jump boost bar will be enabled and show up when players jump.");
+        lines.add("enabled: " + enabled);
+        lines.add("");
+        lines.add("# The type of bar to use for the jump boost bar. Valid options are \"xp\" and \"bossbar\".");
+        lines.add("bar: " + barMode.configValue());
+        lines.add("");
+        lines.add("# The message to display in the action bar when the jump boost bar is active. You can use {blocks} to display the number of blocks the player has jumped.");
+        lines.add("actionbar-message: " + GSON.toJson(actionbarMessage));
+        return lines;
+    }
 }
