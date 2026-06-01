@@ -20,7 +20,11 @@ import gg.literal.jumpboostbar.common.JumpChargeHandler;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.effect.MobEffects;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.function.Consumer;
@@ -81,10 +85,13 @@ public class FabricJumpChargeHandler implements JumpChargeHandler {
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
-        return player.getActiveEffects().stream()
-            .filter(effect -> effect.getEffect().is(net.minecraft.world.effect.BuiltInMobEffects.JUMP_BOOST))
-            .findFirst()
-            .map(effect -> 1.25 + (effect.getAmplifier() + 1) * 1.25)
-            .orElse(0.0);
+        ResourceLocation id = ResourceLocation.tryParse("minecraft:jump_boost");
+        Holder<MobEffect> jumpBoost = id == null ? null : BuiltInRegistries.MOB_EFFECT.getHolder(id).orElse(null);
+        MobEffectInstance instance = jumpBoost == null ? null : player.getEffect(jumpBoost);
+        if (instance == null) {
+            return 0.0;
+        }
+        int amplifier = instance.getAmplifier() + 1;
+        return 1.25 + (amplifier * 1.25);
     }
 }

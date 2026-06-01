@@ -19,7 +19,10 @@ package gg.literal.jumpboostbar.neoforge;
 import gg.literal.jumpboostbar.common.JumpChargeHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.effect.MobEffects;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -82,10 +85,12 @@ public class NeoForgeJumpChargeHandler implements JumpChargeHandler {
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
-        return player.getActiveEffects().stream()
-            .filter(effect -> effect.getEffect().is(net.minecraft.world.effect.BuiltInMobEffects.JUMP_BOOST))
-            .findFirst()
-            .map(effect -> 1.25 + (effect.getAmplifier() + 1) * 1.25)
-            .orElse(0.0);
+        MobEffect jumpBoost = BuiltInRegistries.MOB_EFFECT.get(new ResourceLocation("minecraft", "jump_boost"));
+        MobEffectInstance instance = jumpBoost == null ? null : player.getEffect(jumpBoost);
+        if (instance == null) {
+            return 0.0;
+        }
+        int amplifier = instance.getAmplifier() + 1;
+        return 1.25 + (amplifier * 1.25);
     }
 }
