@@ -40,8 +40,13 @@ function Read-GradleProperty($Name, $Default) {
 
 function Find-ModrinthFile($Project, $Loader, $GameVersion) {
     $encoded = [uri]::EscapeDataString($Project)
-    $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } `
-        -Uri "https://api.modrinth.com/v2/project/$encoded/version"
+    try {
+        $versions = Invoke-RestMethod -Headers @{ "User-Agent" = "JumpBoostBar/dev-runner" } `
+            -Uri "https://api.modrinth.com/v2/project/$encoded/version" -ErrorAction Stop
+    } catch {
+        Write-Host "Mod not found: '$Project' (could not reach Modrinth or project does not exist)" -ForegroundColor Yellow
+        return $null
+    }
 
     foreach ($version in $versions) {
         if (($version.loaders -contains $Loader) -and ($version.game_versions -contains $GameVersion)) {

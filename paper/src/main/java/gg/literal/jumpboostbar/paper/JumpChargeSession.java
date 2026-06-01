@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2026  literal
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package gg.literal.jumpboostbar.paper;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -49,7 +65,16 @@ public final class JumpChargeSession {
 
     private void tick(ScheduledTask scheduledTask) {
         task = scheduledTask;
-        if (!player.isOnline() || !plugin.settings().isEnabled() || !player.isSneaking()) {
+        if (!player.isOnline() || !plugin.settings().isEnabled()) {
+            finish(false);
+            return;
+        }
+        // If player left the ground while charging, cancel without launching
+        if (!player.isOnGround()) {
+            finish(false);
+            return;
+        }
+        if (!player.isSneaking()) {
             finish(true); // Launch when the player stops sneaking
             return;
         }
@@ -92,7 +117,7 @@ public final class JumpChargeSession {
     }
 
     private float getProgress() {
-        return (float) tick / CHARGE_TICKS;
+        return Math.min(1.0f, (float) tick / CHARGE_TICKS);
     }
 
     private void finish(boolean launch) {
@@ -107,7 +132,7 @@ public final class JumpChargeSession {
     }
 
     private void launch() {
-        if (player.isOnGround()) {
+        if (!player.isOnGround()) {
             return;
         }
         double blocks = Math.max(0.1D, currentBlocks());

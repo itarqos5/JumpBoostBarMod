@@ -1,25 +1,40 @@
+/*
+ * Copyright (C) 2026  literal
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 package gg.literal.jumpboostbar.fabric;
 
 import gg.literal.jumpboostbar.common.JumpChargeHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import org.lwjgl.glfw.GLFW;
 
 public class JumpBoostBarFabric implements ClientModInitializer {
+    public static JumpBoostBarConfig config;
     private final JumpChargeHandler chargeHandler = new FabricJumpChargeHandler();
 
     @Override
     public void onInitializeClient() {
+        config = JumpBoostBarConfig.load();
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
     }
 
     private void onClientTick(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player == null) {
+        if (player == null || !config.isEnabled()) {
             return;
         }
 
@@ -27,7 +42,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
             if (!chargeHandler.isCharging()) {
                 chargeHandler.startCharging(20, progress -> {
                     player.experienceLevel = (int) Math.round(calculateJumpHeight(player) * progress);
-                    player.experienceProgress = progress;
+                    player.experienceProgress = Math.min(1.0f, progress);
                 });
             }
         } else {
@@ -40,8 +55,8 @@ public class JumpBoostBarFabric implements ClientModInitializer {
     }
 
     private double calculateJumpHeight(LocalPlayer player) {
-        if (player.hasEffect(net.minecraft.world.effect.MobEffects.JUMP)) {
-            int amplifier = player.getEffect(net.minecraft.world.effect.MobEffects.JUMP).getAmplifier() + 1;
+        if (player.hasEffect(net.minecraft.world.effect.MobEffects.JUMP_BOOST)) {
+            int amplifier = player.getEffect(net.minecraft.world.effect.MobEffects.JUMP_BOOST).getAmplifier() + 1;
             return 1.25 + (amplifier * 1.25);
         }
         return 0.0;
