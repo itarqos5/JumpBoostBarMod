@@ -18,3 +18,22 @@ subprojects {
         options.release = Integer.parseInt(project.findProperty('java_version') as String)
     }
 }
+
+tasks.register('universalModJar', Jar) {
+    group = 'build'
+    description = 'Builds one mod jar containing both Fabric and NeoForge metadata and entrypoints.'
+
+    dependsOn ':fabric:remapJar', ':neoforge:jar'
+    archiveBaseName = project.findProperty('mod_id') as String
+    archiveVersion = project.version as String
+    archiveClassifier = 'fabric-neoforge'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from({
+        zipTree(project(':fabric').tasks.named('remapJar').get().archiveFile.get().asFile)
+    })
+    from({
+        zipTree(project(':neoforge').tasks.named('jar').get().archiveFile.get().asFile)
+    })
+}

@@ -22,6 +22,11 @@ neoForge {
     version = project.property('neoforge_version') as String
 
     runs {
+        client {
+            client()
+            gameDirectory = project.file('run')
+        }
+
         server {
             server()
             gameDirectory = project.file('run')

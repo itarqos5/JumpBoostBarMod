@@ -5,3 +5,8 @@ api-version: '1.21'
 authors:
   - literal
 description: Server-side JumpBoostBar plugin for Paper.
+folia-supported: true
+permissions:
+  jumpboostbar.command:
+    description: Allows configuring JumpBoostBar.
+    default: op
