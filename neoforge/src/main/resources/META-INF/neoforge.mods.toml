@@ -20,4 +20,4 @@ Because who needs to build leg muscles when you can just... charge up and fly? I
 [[dependencies.${mod_id}]]
     modId="minecraft"
     type="required"
-    versionRange="[1.21,1.27)"
+    versionRange="[1.21,27)"
