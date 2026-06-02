@@ -34,6 +34,9 @@ public class FabricJumpChargeHandler implements JumpChargeHandler {
     private float originalExp;
 
     public FabricJumpChargeHandler() {
+    }
+
+    public void register() {
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
     }
 

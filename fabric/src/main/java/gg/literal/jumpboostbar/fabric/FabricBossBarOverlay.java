@@ -19,18 +19,20 @@ package gg.literal.jumpboostbar.fabric;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
 
 public final class FabricBossBarOverlay {
     private boolean visible;
     private float progress;
-    private Component title = Component.empty();
+    private String title = "";
 
     public FabricBossBarOverlay() {
+    }
+
+    public void register() {
         HudRenderCallback.EVENT.register(this::onHudRender);
     }
 
-    public void update(Component title, float progress) {
+    public void update(String title, float progress) {
         this.title = title;
         this.progress = Math.max(0.0f, Math.min(1.0f, progress));
         this.visible = true;

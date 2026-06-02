@@ -24,7 +24,6 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
 
 public class JumpBoostBarFabric implements ClientModInitializer {
@@ -37,6 +36,8 @@ public class JumpBoostBarFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         config = JumpBoostBarConfig.load();
+        chargeHandler.register();
+        bossBarOverlay.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             registerCommands(dispatcher);
         });
@@ -77,8 +78,6 @@ public class JumpBoostBarFabric implements ClientModInitializer {
 
     private void showBars(LocalPlayer player, float progress) {
         double blocks = calculateJumpHeight(player) * Math.min(1.0f, progress);
-        String actionbar = config.actionbarMessage().replace("{blocks}", String.format("%.1f", blocks));
-        player.displayClientMessage(Component.literal(actionbar.replace('&', '§')), true);
 
         if (config.barMode() == BarMode.XP) {
             player.experienceLevel = (int) Math.round(blocks);
@@ -87,7 +86,7 @@ public class JumpBoostBarFabric implements ClientModInitializer {
             return;
         }
 
-        bossBarOverlay.update(Component.literal(String.format("%.1f blocks", blocks)), progress);
+        bossBarOverlay.update(String.format("%.1f blocks", blocks), progress);
     }
 
     private boolean hasJumpBoost(LocalPlayer player) {
@@ -117,14 +116,12 @@ public class JumpBoostBarFabric implements ClientModInitializer {
             ClientCommandManager.literal("jumpboostbar")
                 .then(ClientCommandManager.literal("on").executes(context -> {
                     config.setEnabled(true);
-                    context.getSource().sendFeedback(Component.literal("§aJumpBoostBar enabled."));
                     return 1;
                 }))
                 .then(ClientCommandManager.literal("off").executes(context -> {
                     config.setEnabled(false);
                     chargeHandler.cancelCharging();
                     bossBarOverlay.hide();
-                    context.getSource().sendFeedback(Component.literal("§cJumpBoostBar disabled."));
                     return 1;
                 }))
                 .then(ClientCommandManager.literal("bar")
@@ -137,19 +134,14 @@ public class JumpBoostBarFabric implements ClientModInitializer {
                         .executes(context -> {
                             String mode = StringArgumentType.getString(context, "mode");
                             if (!mode.equalsIgnoreCase("xp") && !mode.equalsIgnoreCase("bossbar")) {
-                                context.getSource().sendFeedback(Component.literal("§cUsage: /jumpboostbar bar <xp|bossbar>"));
                                 return 0;
                             }
                             config.setBarMode(BarMode.fromConfig(mode));
                             chargeHandler.cancelCharging();
                             bossBarOverlay.hide();
-                            context.getSource().sendFeedback(Component.literal("§aJumpBoostBar bar set to §f" + config.barMode().configValue() + "§a."));
                             return 1;
                         })))
                 .executes(context -> {
-                    context.getSource().sendFeedback(Component.literal("§e/jumpboostbar on"));
-                    context.getSource().sendFeedback(Component.literal("§e/jumpboostbar off"));
-                    context.getSource().sendFeedback(Component.literal("§e/jumpboostbar bar <xp|bossbar>"));
                     return 1;
                 })
         );
